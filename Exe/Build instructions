@@ -1,2 +1,3 @@
 youtube-dl -u
 
+pyinstaller --onefile -w -i icon.ico GUI.py
