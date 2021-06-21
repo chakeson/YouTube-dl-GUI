@@ -5,18 +5,14 @@ import os, sys, logging, configparser
 from threading import Thread
 from tkinter import scrolledtext  
 from tkinter import messagebox  
-
+from tkinter import filedialog
 
 import youtube_dl
 
 import webbrowser #For opening the links in the menus.
 
-"""
-from contextlib import redirect_stdout # Redirect all the prints when we run the program
-with open("log.txt","w") as logfile:
-    with redirect_stdout(logfile):
-        print('test')
-"""
+
+
 ## LOGGER FOR THE CODE BECAUSE tkinter and pyinstaller break in new ways and to ease that debugging.
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -64,6 +60,7 @@ github_url = "https://github.com/chakeson/YouTube-dl-GUI"
 license_url = "https://github.com/chakeson/YouTube-dl-GUI/blob/main/LICENSE"
 version_url = "https://github.com/chakeson/YouTube-dl-GUI/blob/main/version"
 
+
 # YouTube-dl code
 
 # Intercepts YouTube-dl's output
@@ -84,8 +81,9 @@ def my_hook(d):
 
 
 #"Highest resolution", "2160p", "1440p", "1080p", "720p", "480p", "360p", "240p", "Worst resolution"]
-def create_opts(resolution_setting):
-    logger.debug("Called function create_opts with: "+ str(resolution_setting))
+def create_opts( resolution_setting, file_path, audio_extract):
+    logger.debug("Called function create_opts with: "+ str(resolution_setting) + " " + str(file_path) + " " + str(audio_extract))
+
 
     if resolution_setting == "Highest resolution":
         video_setting = 'bestvideo+bestaudio/best'
@@ -115,37 +113,45 @@ def create_opts(resolution_setting):
     elif resolution_setting == "Worst resolution":
         video_setting = 'worst'
 
-    """
-     'postprocessors': [{
-        'key': 'FFmpegEmbedSubtitle',
-        'ffmpeg-location': str(ffmpeg_path),
-    }], 
-    """ 
+
+    #Build the youtube-dl options
     ydl_opts = {
     'format': str(video_setting),           
     'logger': MyLogger(),
     'progress_hooks': [my_hook],
     'ffmpeg_location': str(ffmpeg_path),
     }
+
+    #Check if audio extractions is on and add it to the youtube-dl options
+    if audio_extract == True:
+         ydl_opts['postprocessors']= [{'key': 'FFmpegExtractAudio'}]
+
+    #Check if custom filepath is on and add it to the youtube-dl options
+    if file_path != False:
+        ydl_opts['outtmpl']= str(file_path) +"/" + "%(title)s.%(ext)s" 
+
+
     logger.info("Opts: " + str(ydl_opts))
     return ydl_opts
 
 
-def downloader( user_input, resolution_setting):
+def downloader( user_input, resolution_setting, file_path, audio_extract):
     logger.debug("Called function downloader with: "+ str(user_input) +" : " + str(resolution_setting))
     index = 0
     for url in user_input:
         logger.info("Downloading: " + str(url))
         index += 1
-        ydl_opts = create_opts(resolution_setting)
+        ydl_opts = create_opts(resolution_setting, file_path, audio_extract)
         
         if 1:
-        #try:
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-        #except Exception as E:
-            #print(E)
-            #custom_popup("Warning YouTube-dl error", Exception)
+            try:
+                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+            except Exception as E:
+                print(E)
+                logging.exception()
+                custom_popup("Warning YouTube-dl error", Exception)
+            
 
         logger.debug("Finished the download")
 
@@ -154,12 +160,8 @@ def downloader( user_input, resolution_setting):
         status_var.set(buildstr)
         root.update()
         logger.debug("GUI updated")
-        #print("dsgjhsdgh")
-        #download_progress_statusbar.set(buildstr) #Instance of 'Label' has no 'set' member
-        #download_progress_statusbar.config(text=buildstr)
-        #download_progress_statusbar['text'] = buildstr
-        #download_progress_statusbar = Label(root, text="Download progress: "+ str(index)+ "/" + str(len(user_input)), bd=1, relief=SUNKEN, anchor=E, padx=20)
-        #download_progress_statusbar.grid(row=2, column = 0, columnspan=2, sticky=W+E)
+
+
         
     return
 
@@ -196,6 +198,25 @@ def custom_popup(title_bar, text_to_show):
     return
 
 
+
+#TODO
+## Chooses the directory to download too, with youtube-dl
+def open_dir():
+    global directory_name
+    directory_name = filedialog.askdirectory(initialdir = "/")
+
+    #config['download_settings'] = {'file_path': directory_name}
+    config['download_settings']['file_path'] = directory_name
+    try:
+        with open(config_file, "w") as tobewritten:
+            #config.write(filename)
+            config.write(tobewritten)
+    except Exception as E:
+        logger.exception("Resolution error open dir")
+        custom_popup("Config file Error open dir", Exception)
+
+
+    return
 
 ## Handles starting the thread which will do the downloading work.
 ## This frees up the GIL so you can still interact with the GUI which the download is happening.
@@ -236,21 +257,38 @@ def main_process():
         return    
 
     
-    
+    # Get resolution
     try:
         resolution_setting = working_res.get()
     except Exception:
         logger.exception("Resolution error")
         custom_popup("Warning resolution error", Exception)
     
+    #Get file path
+    try:
+        try:
+            file_path = config.get('download_settings','file_path')
+        except:
+            file_path = False
+    except Exception:
+        logger.exception("File path error")
+        custom_popup("Warning file path error", Exception)
 
-    downloader(user_input, resolution_setting)
+    #Get if audio extract is on
+    try:
+        audio_extract = audio_extract_selection.get()
+    except Exception:
+        logger.exception("Audio extract error")
+        custom_popup("Warning audio extract error", Exception)
+
+    downloader(user_input, resolution_setting, file_path, audio_extract)
 
 
     #Turn the button back on.
     start_download_button["state"] = "normal"
     file_menu.entryconfig(0,state=NORMAL)
     return
+
 
 ## Builds the config file with the settings the first time the code is run.
 def build_config_file( config, filename):
@@ -267,8 +305,8 @@ def build_config_file( config, filename):
     
     config['GUI'] = {'theme': 'light'}
     config['download_settings'] = {'standard_resolution': 'Highest resolution',
-                                    'file_path': 'None',
-                                    'audio_only': 'no'}
+                                    'file_path': 'False',
+                                    'audio_only': 'False'}
     try:
         with open(filename, "w") as configfile:
             #config.write(filename)
@@ -279,7 +317,20 @@ def build_config_file( config, filename):
 
     return
 
+## Load in config file and validate input #TODO add validation
+def load_config_file():
+    global start_audio_extract
+    global start_resolution
+    #global directory_name
+    start_resolution = config.get('download_settings','standard_resolution') #config['download_settings']['standard_resolution'] legacy api
+    start_audio_extract = config.get('download_settings','audio_only')
+    #directory_name = config.get('download_settings','file_path')
 
+
+    return
+
+
+global config
 config = configparser.ConfigParser()
 config.read(config_file)
 #TODO
@@ -290,16 +341,16 @@ def main():
     if config.sections() == []: # if it's an empty list.
         #Make the settings file.
         build_config_file(config, config_file)
-
+    
+    load_config_file() 
 
     
-
 
     return
 
 if __name__ == "__main__":
     main()
-start_resolution = config.get('download_settings','standard_resolution') #config['download_settings']['standard_resolution']
+
 
 
 
@@ -313,29 +364,56 @@ root.title("YouTube-DL GUI") #Title/Name of program in top bar
 path_icon = resource_path('icon.ico')
 root.iconbitmap(path_icon)
 
+root.minsize( 520, 270) #minimum window size
+root.geometry("600x300")
 
+## UI scaling with window resizing
+Grid.rowconfigure(root, 0, weight=0)
+Grid.rowconfigure(root, 1, weight=1)
+Grid.columnconfigure(root, 0, weight=0)
+Grid.columnconfigure(root, 1, weight=1)
+#Scales the grid with window size/resolution
 
 #Window GUI
 Instructions = Label(root, text="Paste your YouTube links for download:")
-Instructions.grid(row=0, column=1)
+Instructions.grid(row=0, column=1, sticky="NSEW")
 
-input_url= scrolledtext.ScrolledText(root, width=50, height=20)
-input_url.grid(row=1, column=1)
+input_url= scrolledtext.ScrolledText(root)#, width=50, height=20)
+input_url.grid(row=1, column=1, rowspan=3, sticky="NSEW")
 
 #potential_resolutions = ["Highest resolution", "2160p", "1440p", "1080p", "720p", "480p","360p", "240p", "Worst resolution"] #Defined earlier with other constants also so configparser has access
 working_res = StringVar()
 working_res.set(start_resolution) #Standard value is "Highest resolution"
 max_resolution = OptionMenu(root, working_res, *potential_resolutions)
 max_resolution.configure(width=15) #Sets a constant width of the resolution menu
-max_resolution.grid(row=0, column=0)
+max_resolution.grid(row=0, column=0, sticky="EW")
 
-start_download_button = Button(root, text="Start download", command=start_process, width=18 , height=5) 
-start_download_button.grid(row=1, column=0) #, sticky=N+W)
 
+#File dialog
+download_dir_button = Button( root, text="Download file directory", command=open_dir)
+download_dir_button.grid(row=1, column=0, sticky="new")
+
+
+#Audio extract
+audio_extract_selection = BooleanVar()
+audio_extract_selection.set(start_audio_extract)
+audio_extract_checkbox = Checkbutton(root , text="Extract audio", variable=audio_extract_selection, onvalue=True, offvalue=False, width=15, height=1, anchor="n")
+audio_extract_checkbox.grid(row=2, column=0, sticky="NEW")
+
+
+#Start download button
+start_download_button = Button(root, text="Start download", command=start_process, height=10)#, width=18 , height=5) 
+start_download_button.grid(row=3, column=0, sticky="NSEW") #, sticky=N+W)
+
+
+#Status bar bottom of the window
 status_var = StringVar()
 status_var.set("Download progress: 0/0")
 download_progress_statusbar = Label(root, textvariable= status_var , bd=1, relief=SUNKEN, anchor=E, padx=20) #text="Download progress: 0/0"
-download_progress_statusbar.grid(row=2, column = 0, columnspan=2, sticky=W+E)
+download_progress_statusbar.grid(row=4, column = 0, columnspan=2, sticky=W+E)
+
+
+
 
 
 ## TOP bar
@@ -355,7 +433,10 @@ file_menu.add_command(label="Close program", command=root.quit)
 #Settings
 setting_menu = Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="Settings", menu=setting_menu)
-setting_menu.add_command(label="Theme")#, command=start_process)
+setting_menu.add_command(label="Theme")#, command=start_process) ¤TODO
+setting_menu.add_command(label="Audio extract always on")#, command=start_process) #TODO
+
+
 
 #Help/About
 help_menu = Menu(menu_bar, tearoff=0)
