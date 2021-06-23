@@ -213,6 +213,13 @@ def get_theme_color(theme_choice):
         third_color = "#424242"
         fourth_color = "#212121"
         text_color = "#BDBDBD"
+
+    elif theme_choice == "black":   #Dark theme color based on https://uxdesign.cc/dark-mode-ui-design-the-definitive-guide-part-1-color-53dcfaea5129
+        main_color = "#000000"
+        second_color = "#212121"
+        third_color = "#424242"
+        fourth_color = "#212121"
+        text_color = "#9E9E9E"
     
     else:
         raise Exception("Missing theme option"+str(theme_choice))
@@ -582,6 +589,7 @@ menu_bar.add_cascade(label="Settings", menu=setting_menu)
 setting_menu_sub_menu = Menu(setting_menu, tearoff=0)
 setting_menu_sub_menu.add_command(label="Light", command=lambda: set_theme("light")) #TODO
 setting_menu_sub_menu.add_command(label="Dark", command=lambda: set_theme("dark")) #TODO
+setting_menu_sub_menu.add_command(label="Black", command=lambda: set_theme("black")) #TODO
 setting_menu.add_cascade(label="Theme", menu=setting_menu_sub_menu)
 
 setting_menu.add_command(label="Audio extract always on", command=threading.Thread(target=audio_extract_setting).start()) #TODO 
