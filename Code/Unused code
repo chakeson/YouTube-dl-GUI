@@ -1,3 +1,28 @@
+def build_config_file( config, filename):
+    """ # LEGACY API
+    config.add_section("gui")
+    config.add_section("download_settings")
+
+    config.set( "gui", "theme", "light")
+
+    config.set( "download_settings", "standard_resolution", "Highest resolution")
+    config.set( "download_settings", "file_path", "None")
+    config.set( "download_settings", "audio_only", "no")
+    """
+
+
+"""
+def resource_path(relative_path):   #for pyinstaller to work with extra files
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.abspath("."), relative_path)
+"""
+
+
+
+
+
+
 def theme_light():
     main_color = "SystemButtonFace"
     second_color = "SystemButtonFace"
