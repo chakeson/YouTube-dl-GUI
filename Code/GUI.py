@@ -150,7 +150,12 @@ def downloader( user_input, resolution_setting, file_path, audio_extract):
         except Exception as E:
             logging.exception('YouTube-DL download error')
             custom_popup("Warning YouTube-dl error", Exception)
-            
+        
+        #Update the progress bar 
+        buildstr = "Download progress: " + str(index)+ "/" + str(len(user_input))
+        status_var.set(buildstr)
+        root.update()
+        logger.debug("GUI updated")
 
         logger.debug("Finished the download")
         
@@ -327,7 +332,7 @@ def open_dir():
     user_input = filedialog.askdirectory(initialdir = "/")
     
     #Check if the user choose nothing, and if so does not update.
-    if user_input != None:
+    if user_input != '' or None:
         directory_name = user_input
     else:
         return
@@ -362,7 +367,9 @@ def main_process():
     #Turn the button of so no multi clicks
     start_download_button["state"] = "disabled"
     file_menu.entryconfig(0,state=DISABLED)
+    start_download_button.config(cursor="watch")    #Change the mouse when it hover's over to the OS loading symbol
     
+
     logger.debug("Disabled start buttons")
 
     try:
@@ -418,6 +425,8 @@ def main_process():
     #Turn the button back on.
     start_download_button["state"] = "normal"
     file_menu.entryconfig(0,state=NORMAL)
+    start_download_button.config(cursor="arrow") #Change back to the normal mouse cursor when it's hovering over
+
     return
 
 
