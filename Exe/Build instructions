@@ -1,3 +1,4 @@
 youtube-dl -u
 
-pyinstaller --onefile -w -i icon.ico GUI.py
+pyinstaller --onedir --hidden-import tkinter --add-data icon.ico;. --add-binary ffmpeg.exe;ffmpeg.exe -i icon.ico -w --log-level DEBUG GUI.py
+
