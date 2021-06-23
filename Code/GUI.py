@@ -302,7 +302,23 @@ def custom_popup(title_bar, text_to_show):
     messagebox.showinfo(title_bar, text_to_show)
     return
 
+def change_download_notification():
+    global finish_notification
 
+    #Write to config in memory the saved location
+    config['download_settings']['finished_notification'] = finish_notification.get()
+    #Write config in memeory to the file.
+    try:
+        with open(config_file, "w") as tobewritten:
+            #config.write(filename)
+            config.write(tobewritten)
+    except Exception as E:
+        logger.exception("Resolution error open dir")
+        custom_popup("Config file Error open dir", Exception)
+
+
+    root.update()
+    return
 
 
 ## Chooses the directory to download too, with youtube-dl
@@ -428,6 +444,7 @@ def build_config_file( config, filename):
 def load_config_file():
     global start_audio_extract
     global start_resolution
+    global start_finish_notification
     #global directory_name
     write_changes = 0
     
@@ -446,11 +463,16 @@ def load_config_file():
         config['download_settings']['audio_only'] = start_audio_extract
         write_changes = 1
 
+    #Check the filepath
     #directory_name = config.get('download_settings','file_path')
     if config.get('download_settings','file_path') == "" or None:
         config['download_settings']['file_path'] = "False"
         write_changes = 1
 
+    start_finish_notification = config.get('download_settings','finished_notification')
+    if start_finish_notification != "True" or "False":
+        config['download_settings']['finished_notification'] = "False"
+        write_changes = 1
 
     #Theme set up
     
@@ -599,6 +621,10 @@ setting_menu_sub_menu.add_command(label="Black", command=lambda: set_theme("blac
 setting_menu.add_cascade(label="Theme", menu=setting_menu_sub_menu)
 
 setting_menu.add_command(label="Audio extract always on", command=threading.Thread(target=audio_extract_setting).start()) #TODO 
+
+finish_notification = StringVar()
+finish_notification.set(start_finish_notification)
+setting_menu.add_checkbutton(label="Finished download nofication", command=change_download_notification, onvalue="True", offvalue="False", variable=finish_notification)
 
 #Help/About
 help_menu = Menu(menu_bar, tearoff=0)
