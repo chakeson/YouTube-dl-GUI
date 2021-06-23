@@ -1,0 +1,74 @@
+def theme_light():
+    main_color = "SystemButtonFace"
+    second_color = "SystemButtonFace"
+    third_color = "SystemButtonFace"
+    fourth_color = "#ffffff"
+    text_color = "#000000"
+    
+    #Main UI elements
+    root.config(bg=main_color)
+    Instructions.config(bg=main_color, fg=text_color)
+    input_url.config(bg=fourth_color, fg=text_color)
+    max_resolution.config(bg=second_color, fg=text_color, activebackground=third_color, activeforeground=text_color)
+    max_resolution["menu"].config(bg=third_color,fg=text_color)
+    download_dir_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+    audio_extract_checkbox.config(bg=second_color, fg=text_color, activebackground=fourth_color, selectcolor=fourth_color)
+    start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+    download_progress_statusbar.config(bg=second_color, fg=text_color)
+
+    #Menubar UI elements
+    menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
+    file_menu.config(bg=main_color, fg=text_color)
+    setting_menu.config(bg=main_color, fg=text_color)
+    setting_menu_sub_menu.config(bg=main_color, fg=text_color)
+    help_menu.config(bg=main_color, fg=text_color)
+
+    #Save changes
+    config['GUI']['theme'] = "light"
+    try:
+        with open(config_file, "w") as tobewritten:
+            #config.write(filename)
+            config.write(tobewritten)
+    except Exception as E:
+        logger.exception("Resolution error open dir")
+        custom_popup("Config file Error theme select light", Exception)
+
+    return
+
+def theme_dark():
+    #Colors based on https://uxdesign.cc/dark-mode-ui-design-the-definitive-guide-part-1-color-53dcfaea5129
+    main_color = "#121212"
+    second_color = "#212121"
+    third_color = "#424242"
+    fourth_color = "#212121"
+    text_color = "#BDBDBD"
+
+    #Main UI elements
+    root.config(bg=main_color)
+    Instructions.config(bg=main_color, fg=text_color)
+    input_url.config(bg=fourth_color, fg=text_color)
+    max_resolution.config(bg=second_color, fg=text_color, activebackground=third_color, activeforeground=text_color)
+    max_resolution["menu"].config(bg=third_color,fg=text_color)
+    download_dir_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+    audio_extract_checkbox.config(bg=second_color, fg=text_color, activebackground=fourth_color, selectcolor=fourth_color)
+    start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+    download_progress_statusbar.config(bg=second_color, fg=text_color)
+
+    #Menubar UI elements
+    menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
+    file_menu.config(bg=main_color, fg=text_color)
+    setting_menu.config(bg=main_color, fg=text_color)
+    setting_menu_sub_menu.config(bg=main_color, fg=text_color)
+    help_menu.config(bg=main_color, fg=text_color)
+
+    #Save changes
+    config['GUI']['theme'] = "dark"
+    try:
+        with open(config_file, "w") as tobewritten:
+            #config.write(filename)
+            config.write(tobewritten)
+    except Exception as E:
+        logger.exception("Resolution error open dir")
+        custom_popup("Config file Error theme select dark", Exception)
+    
+    return
