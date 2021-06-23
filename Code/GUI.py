@@ -31,12 +31,7 @@ sys.stdout = open('stdout.txt', 'w')  # Redirect all the prints when we run the 
 
 
 
-"""
-def resource_path(relative_path):   #for pyinstaller to work with extra files
-        if hasattr(sys, '_MEIPASS'):
-            return os.path.join(sys._MEIPASS, relative_path)
-        return os.path.join(os.path.abspath("."), relative_path)
-"""
+
 def resource_path(relative_path): #for pyinstaller to work with extra files
     logger.debug("Called function resource_path with: "+ str(relative_path))
     try: 
@@ -136,37 +131,36 @@ def create_opts( resolution_setting, file_path, audio_extract):
 def downloader( user_input, resolution_setting, file_path, audio_extract):
     logger.debug("Called function downloader with: "+ str(user_input) +" : " + str(resolution_setting))
     index = 0
+    ydl_opts = create_opts(resolution_setting, file_path, audio_extract)
+    
     for url in user_input:
         logger.info("Downloading: " + str(url))
-        index += 1
-        ydl_opts = create_opts(resolution_setting, file_path, audio_extract)
         
-        if 1:
-            try:
-                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
-            except Exception as E:
-                print(E)
-                logging.exception('msg') #TODO
-                custom_popup("Warning YouTube-dl error", Exception)
-            
-
-        logger.debug("Finished the download")
-
         #Update the progress bar
         buildstr = "Download progress: " + str(index)+ "/" + str(len(user_input))
         status_var.set(buildstr)
         root.update()
         logger.debug("GUI updated")
+        
+        index += 1
 
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except Exception as E:
+            logging.exception('YouTube-DL download error')
+            custom_popup("Warning YouTube-dl error", Exception)
+            
 
+        logger.debug("Finished the download")
         
     return
 
 ## UI settings functions
 
 def audio_extract_setting():
-    
+
+    #Get config settings
     audio_extract_setting_choice = config.get('download_settings','audio_only')
     #Validate audio extract config, and if failed run config loading and validation.
     if audio_extract_setting_choice != "True" or "False":
@@ -179,7 +173,8 @@ def audio_extract_setting():
         audio_extract_selection = "True"
 
     config['download_settings']['audio_only'] = audio_extract_selection
-            
+    
+         
     try:
         with open(config_file, "w") as tobewritten:
             config.write(tobewritten)
@@ -191,8 +186,12 @@ def audio_extract_setting():
     return
 
 ##THEME functions
+
 def get_theme_color(theme_choice):
-    #Function that contains themes colors
+    # Function that contains themes colors.
+    # Takes in lowercase string with the themes name, then matched and the right colors are returned
+    # Function call looks like  main_color, second_color, third_color, fourth_color, text_color = get_theme_color("dark")
+    # Grey, Dark and Black theme colors are based on https://uxdesign.cc/dark-mode-ui-design-the-definitive-guide-part-1-color-53dcfaea5129
 
     global main_color
     global second_color
@@ -207,15 +206,21 @@ def get_theme_color(theme_choice):
         fourth_color = "#ffffff"
         text_color = "#000000"
     
-    elif theme_choice == "dark":   #Dark theme color based on https://uxdesign.cc/dark-mode-ui-design-the-definitive-guide-part-1-color-53dcfaea5129
+    elif theme_choice == "grey":   
+        main_color = "#7e7e7e"
+        second_color = "#626262"
+        third_color = "#515151"
+        fourth_color = "#626262"
+        text_color = "#F7F7F7"
+
+    elif theme_choice == "dark":   
         main_color = "#121212"
         second_color = "#212121"
         third_color = "#424242"
         fourth_color = "#212121"
         text_color = "#BDBDBD"
 
-    elif theme_choice == "black":   #Dark theme color based on https://uxdesign.cc/dark-mode-ui-design-the-definitive-guide-part-1-color-53dcfaea5129
-        main_color = "#000000"
+    elif theme_choice == "black":
         second_color = "#212121"
         third_color = "#424242"
         fourth_color = "#212121"
@@ -235,9 +240,10 @@ def set_theme(theme_choice):
     global third_color
     global fourth_color
     global text_color
+    #Fetch colors
     main_color, second_color, third_color, fourth_color, text_color = get_theme_color(theme_choice)
 
-    #Main UI elements
+    #Main UI elements, set their color
     root.config(bg=main_color)
     Instructions.config(bg=main_color, fg=text_color)
     input_url.config(bg=fourth_color, fg=text_color)
@@ -248,7 +254,7 @@ def set_theme(theme_choice):
     start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
     download_progress_statusbar.config(bg=second_color, fg=text_color)
 
-    #Menubar UI elements
+    #Menubar UI elements, set their color
     menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
     file_menu.config(bg=main_color, fg=text_color)
     setting_menu.config(bg=main_color, fg=text_color)
@@ -269,14 +275,13 @@ def set_theme(theme_choice):
 
 
 ## UI help functions
-def check_update():
+def check_update(): #TODO
     logger.debug("Called function check_update")
     custom_popup("Not impmented", "Not impmented yet.")
     return
 
 def check_license():
     logger.debug("Called function check_license")
-    #custom_popup("Not impmented", "Not impmented yet.")
     webbrowser.open_new(license_url)
     return
 
@@ -287,7 +292,6 @@ def program_not_working():
 
 def github_open():
     logger.debug("Called function github_open")
-    #custom_popup("Not impmented", "Not impmented yet.")
     webbrowser.open_new(github_url)
     return
 
@@ -300,14 +304,21 @@ def custom_popup(title_bar, text_to_show):
 
 
 
-#TODO
+
 ## Chooses the directory to download too, with youtube-dl
 def open_dir():
     global directory_name
-    directory_name = filedialog.askdirectory(initialdir = "/")
+    user_input = filedialog.askdirectory(initialdir = "/")
+    
+    #Check if the user choose nothing, and if so does not update.
+    if user_input != None:
+        directory_name = user_input
+    else:
+        return
 
-    #config['download_settings'] = {'file_path': directory_name}
+    #Write to config in memory the saved location
     config['download_settings']['file_path'] = directory_name
+    #Write config in memeory to the file.
     try:
         with open(config_file, "w") as tobewritten:
             #config.write(filename)
@@ -321,6 +332,7 @@ def open_dir():
 
 ## Handles starting the thread which will do the downloading work.
 ## This frees up the GIL so you can still interact with the GUI which the download is happening.
+## command=threading.Thread(target=main_process).start() isnt used because tkinter on intialising seems to run it.
 def start_process():
     downloader_thread = threading.Thread(target=main_process)
     downloader_thread.start()
@@ -384,6 +396,8 @@ def main_process():
 
     downloader(user_input, resolution_setting, file_path, audio_extract)
 
+    if config.get('download_settings','finished_notification') == "True":
+        custom_popup("Download finished", "Download finished.")
 
     #Turn the button back on.
     start_download_button["state"] = "normal"
@@ -393,21 +407,13 @@ def main_process():
 
 ## Builds the config file with the settings the first time the code is run.
 def build_config_file( config, filename):
-    """ # LEGACY API
-    config.add_section("gui")
-    config.add_section("download_settings")
 
-    config.set( "gui", "theme", "light")
-
-    config.set( "download_settings", "standard_resolution", "Highest resolution")
-    config.set( "download_settings", "file_path", "None")
-    config.set( "download_settings", "audio_only", "no")
-    """
     
     config['GUI'] = {'theme': 'light'}
     config['download_settings'] = {'standard_resolution': 'Highest resolution',
                                     'file_path': 'False',
-                                    'audio_only': 'False'}
+                                    'audio_only': 'False',
+                                    "finished_notification": "False"}
     try:
         with open(filename, "w") as configfile:
             #config.write(filename)
@@ -418,7 +424,7 @@ def build_config_file( config, filename):
 
     return
 
-## Load in config file and validate input #TODO add validation
+## Load in config file and validate input 
 def load_config_file():
     global start_audio_extract
     global start_resolution
@@ -487,11 +493,11 @@ def main():
     config = configparser.ConfigParser()
     config.read(config_file)
     
-    if config.sections() == []: # if it's an empty list.
+    if config.sections() == []: # if it's an empty list. Checks if empty config and if yes then builds it with standard settings.
         #Make the settings file.
         build_config_file(config, config_file)
     
-    load_config_file() 
+    load_config_file() #Load into variables the config values and values associated with them.
 
     
 
@@ -514,7 +520,7 @@ path_icon = resource_path('icon.ico')
 root.iconbitmap(path_icon)
 
 root.minsize( 520, 270) #minimum window size
-root.geometry("600x300")
+root.geometry("600x300") #Window start up size
 
 ## UI scaling with window resizing
 Grid.rowconfigure(root, 0, weight=0)
@@ -530,7 +536,8 @@ Instructions.grid(row=0, column=1, sticky="NSEW")
 input_url= scrolledtext.ScrolledText(root)#, width=50, height=20)
 input_url.grid(row=1, column=1, rowspan=3, sticky="NSEW")
 
-#potential_resolutions = ["Highest resolution", "2160p", "1440p", "1080p", "720p", "480p","360p", "240p", "Worst resolution"] #Defined earlier with other constants also so configparser has access
+#potential_resolutions = ["Highest resolution", "2160p", "1440p", "1080p", "720p", "480p","360p", "240p", "Worst resolution"] 
+# #Defined earlier with other constants also so configparser has access
 working_res = StringVar()
 working_res.set(start_resolution) #Standard value is "Highest resolution"
 max_resolution = OptionMenu(root, working_res, *potential_resolutions)
@@ -567,8 +574,6 @@ download_progress_statusbar.grid(row=4, column = 0, columnspan=2, sticky=W+E)
 
 
 ## TOP bar
-
-#button_quit = Button(root, text="Close program", command=root.quit)
 menu_bar = Menu(root)
 root.config(menu=menu_bar)   #Add menu to root
 
@@ -587,14 +592,13 @@ menu_bar.add_cascade(label="Settings", menu=setting_menu)
 
 #Theme submenu
 setting_menu_sub_menu = Menu(setting_menu, tearoff=0)
-setting_menu_sub_menu.add_command(label="Light", command=lambda: set_theme("light")) #TODO
-setting_menu_sub_menu.add_command(label="Dark", command=lambda: set_theme("dark")) #TODO
-setting_menu_sub_menu.add_command(label="Black", command=lambda: set_theme("black")) #TODO
+setting_menu_sub_menu.add_command(label="Light", command=lambda: set_theme("light"))
+setting_menu_sub_menu.add_command(label="Grey", command=lambda: set_theme("grey"))
+setting_menu_sub_menu.add_command(label="Dark", command=lambda: set_theme("dark"))
+setting_menu_sub_menu.add_command(label="Black", command=lambda: set_theme("black"))
 setting_menu.add_cascade(label="Theme", menu=setting_menu_sub_menu)
 
 setting_menu.add_command(label="Audio extract always on", command=threading.Thread(target=audio_extract_setting).start()) #TODO 
-
-
 
 #Help/About
 help_menu = Menu(menu_bar, tearoff=0)
@@ -605,7 +609,7 @@ help_menu.add_command(label="Program not working", command=program_not_working)
 help_menu.add_command(label="Github", command=github_open)
 
 
-## Set the colour of the program
+## Set the colour of the program, colors come from loading of config
 root.config(bg=main_color)
 Instructions.config(bg=main_color, fg=text_color)
 input_url.config(bg=fourth_color, fg=text_color)
@@ -625,16 +629,7 @@ help_menu.config(bg=main_color, fg=text_color)
 
 
 
-
-
-
-
-
-
-
-
-
-
+#TK mainloop
 root.mainloop()
 
 
