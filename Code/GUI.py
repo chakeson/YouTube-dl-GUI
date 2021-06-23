@@ -7,6 +7,7 @@ from tkinter import scrolledtext
 from tkinter import messagebox  
 from tkinter import filedialog
 
+
 import youtube_dl
 
 import webbrowser #For opening the links in the menus.
@@ -27,9 +28,6 @@ file_handler.setFormatter(log_format)
 
 # Capture stdout
 sys.stdout = open('stdout.txt', 'w')  # Redirect all the prints when we run the program. Relevant when the program runs with no console. This happens when program is built with pyinstaller -windowed tag
-
-
-
 
 
 
@@ -127,7 +125,7 @@ def create_opts( resolution_setting, file_path, audio_extract):
          ydl_opts['postprocessors']= [{'key': 'FFmpegExtractAudio'}]
 
     #Check if custom filepath is on and add it to the youtube-dl options
-    if file_path != False:
+    if file_path != False or None:
         ydl_opts['outtmpl']= str(file_path) +"/" + "%(title)s.%(ext)s" 
 
 
@@ -149,7 +147,7 @@ def downloader( user_input, resolution_setting, file_path, audio_extract):
                     ydl.download([url])
             except Exception as E:
                 print(E)
-                logging.exception()
+                logging.exception('msg') #TODO
                 custom_popup("Warning YouTube-dl error", Exception)
             
 
@@ -165,9 +163,105 @@ def downloader( user_input, resolution_setting, file_path, audio_extract):
         
     return
 
+## UI settings functions
+
+def audio_extract_setting():
+    
+    audio_extract_setting_choice = config.get('download_settings','audio_only')
+    #Validate audio extract config, and if failed run config loading and validation.
+    if audio_extract_setting_choice != "True" or "False":
+        load_config_file()
+        audio_extract_setting_choice = config.get('download_settings','audio_only') #Over write the new ones.
+    
+    if audio_extract_setting_choice == "True":
+        audio_extract_selection = "False"
+    else:
+        audio_extract_selection = "True"
+
+    config['download_settings']['audio_only'] = audio_extract_selection
+            
+    try:
+        with open(config_file, "w") as tobewritten:
+            config.write(tobewritten)
+    except Exception as E:
+        logger.exception("Resolution error open dir")
+        custom_popup("Config file Error open dir", Exception)
+ 
+
+    return
+
+##THEME functions
+def get_theme_color(theme_choice):
+    #Function that contains themes colors
+
+    global main_color
+    global second_color
+    global third_color
+    global fourth_color
+    global text_color
+
+    if theme_choice == "light":
+        main_color = "SystemButtonFace"
+        second_color = "SystemButtonFace"
+        third_color = "SystemButtonFace"
+        fourth_color = "#ffffff"
+        text_color = "#000000"
+    
+    elif theme_choice == "dark":   #Dark theme color based on https://uxdesign.cc/dark-mode-ui-design-the-definitive-guide-part-1-color-53dcfaea5129
+        main_color = "#121212"
+        second_color = "#212121"
+        third_color = "#424242"
+        fourth_color = "#212121"
+        text_color = "#BDBDBD"
+    
+    else:
+        raise Exception("Missing theme option"+str(theme_choice))
+    
+    return main_color, second_color, third_color, fourth_color, text_color
 
 
 
+def set_theme(theme_choice):
+    #Fetch theme color
+    global main_color
+    global second_color
+    global third_color
+    global fourth_color
+    global text_color
+    main_color, second_color, third_color, fourth_color, text_color = get_theme_color(theme_choice)
+
+    #Main UI elements
+    root.config(bg=main_color)
+    Instructions.config(bg=main_color, fg=text_color)
+    input_url.config(bg=fourth_color, fg=text_color)
+    max_resolution.config(bg=second_color, fg=text_color, activebackground=third_color, activeforeground=text_color)
+    max_resolution["menu"].config(bg=third_color,fg=text_color)
+    download_dir_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+    audio_extract_checkbox.config(bg=second_color, fg=text_color, activebackground=fourth_color, selectcolor=fourth_color)
+    start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+    download_progress_statusbar.config(bg=second_color, fg=text_color)
+
+    #Menubar UI elements
+    menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
+    file_menu.config(bg=main_color, fg=text_color)
+    setting_menu.config(bg=main_color, fg=text_color)
+    setting_menu_sub_menu.config(bg=main_color, fg=text_color)
+    help_menu.config(bg=main_color, fg=text_color)
+
+    #Save changes
+    config['GUI']['theme'] = str(theme_choice)
+    try:
+        with open(config_file, "w") as tobewritten:
+            #config.write(filename)
+            config.write(tobewritten)
+    except Exception as E:
+        logger.exception("Resolution error open dir")
+        custom_popup("Config file Error theme select: "+str(theme_choice), Exception)
+
+    return
+
+
+## UI help functions
 def check_update():
     logger.debug("Called function check_update")
     custom_popup("Not impmented", "Not impmented yet.")
@@ -322,22 +416,70 @@ def load_config_file():
     global start_audio_extract
     global start_resolution
     #global directory_name
+    write_changes = 0
+    
     start_resolution = config.get('download_settings','standard_resolution') #config['download_settings']['standard_resolution'] legacy api
+    #Validate start resolution config, and if failed set it to the default.
+    if start_resolution not in potential_resolutions:
+        start_resolution = "Highest resolution"
+        config['download_settings']['standard_resolution'] = start_resolution
+        write_changes = 1
+
+
     start_audio_extract = config.get('download_settings','audio_only')
+    #Validate audio extract config, and if failed set it to the default.
+    if start_audio_extract != "True" or "False":
+        start_audio_extract = "False"
+        config['download_settings']['audio_only'] = start_audio_extract
+        write_changes = 1
+
     #directory_name = config.get('download_settings','file_path')
+    if config.get('download_settings','file_path') == "" or None:
+        config['download_settings']['file_path'] = "False"
+        write_changes = 1
+
+
+    #Theme set up
+    
+    global main_color
+    global second_color
+    global third_color
+    global fourth_color
+    global text_color
+
+    theme_choice = config.get('GUI','theme') 
+    try:
+        main_color, second_color, third_color, fourth_color, text_color = get_theme_color(theme_choice)
+    except Exception as E:
+        logger.exception("Theme color fetching failed")
+        main_color, second_color, third_color, fourth_color, text_color = get_theme_color("light")
+        config['GUI']['theme'] = "light"
+        write_changes = 1
+
+
+    if write_changes == 1:
+        try:
+            with open(config_file, "w") as tobewritten:
+                config.write(tobewritten)
+        except Exception as E:
+            logger.exception("Resolution error open dir")
+            custom_popup("Config file Error open dir", Exception)
+
+
 
 
     return
 
 
-global config
-config = configparser.ConfigParser()
-config.read(config_file)
+
 #TODO
 def main():
     #Check for settings
     ## CONFIG
-
+    global config
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    
     if config.sections() == []: # if it's an empty list.
         #Make the settings file.
         build_config_file(config, config_file)
@@ -386,6 +528,7 @@ working_res = StringVar()
 working_res.set(start_resolution) #Standard value is "Highest resolution"
 max_resolution = OptionMenu(root, working_res, *potential_resolutions)
 max_resolution.configure(width=15) #Sets a constant width of the resolution menu
+max_resolution["highlightthickness"] = 0 #Remove highligt border
 max_resolution.grid(row=0, column=0, sticky="EW")
 
 
@@ -398,7 +541,7 @@ download_dir_button.grid(row=1, column=0, sticky="new")
 audio_extract_selection = BooleanVar()
 audio_extract_selection.set(start_audio_extract)
 audio_extract_checkbox = Checkbutton(root , text="Extract audio", variable=audio_extract_selection, onvalue=True, offvalue=False, width=15, height=1, anchor="n")
-audio_extract_checkbox.grid(row=2, column=0, sticky="NEW")
+audio_extract_checkbox.grid(row=2, column=0, sticky=N)#, sticky="N")#"NEW")
 
 
 #Start download button
@@ -422,6 +565,7 @@ download_progress_statusbar.grid(row=4, column = 0, columnspan=2, sticky=W+E)
 menu_bar = Menu(root)
 root.config(menu=menu_bar)   #Add menu to root
 
+# tearoff=0 remove line in menu which opens up the menu in a separate window.
 #Menu Items:
 #File
 file_menu = Menu(menu_bar, tearoff=0)
@@ -433,8 +577,14 @@ file_menu.add_command(label="Close program", command=root.quit)
 #Settings
 setting_menu = Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="Settings", menu=setting_menu)
-setting_menu.add_command(label="Theme")#, command=start_process) ¤TODO
-setting_menu.add_command(label="Audio extract always on")#, command=start_process) #TODO
+
+#Theme submenu
+setting_menu_sub_menu = Menu(setting_menu, tearoff=0)
+setting_menu_sub_menu.add_command(label="Light", command=lambda: set_theme("light")) #TODO
+setting_menu_sub_menu.add_command(label="Dark", command=lambda: set_theme("dark")) #TODO
+setting_menu.add_cascade(label="Theme", menu=setting_menu_sub_menu)
+
+setting_menu.add_command(label="Audio extract always on", command=threading.Thread(target=audio_extract_setting).start()) #TODO 
 
 
 
@@ -445,6 +595,37 @@ help_menu.add_command(label="Check for updates", command=check_update)
 help_menu.add_command(label="License", command=check_license)
 help_menu.add_command(label="Program not working", command=program_not_working)
 help_menu.add_command(label="Github", command=github_open)
+
+
+## Set the colour of the program
+root.config(bg=main_color)
+Instructions.config(bg=main_color, fg=text_color)
+input_url.config(bg=fourth_color, fg=text_color)
+max_resolution.config(bg=second_color, fg=text_color, activebackground=third_color, activeforeground=text_color)
+max_resolution["menu"].config(bg=third_color,fg=text_color)
+download_dir_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+audio_extract_checkbox.config(bg=second_color, fg=text_color, activebackground=fourth_color, selectcolor=fourth_color)
+start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
+download_progress_statusbar.config(bg=second_color, fg=text_color)
+
+#Menubar UI elements
+menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
+file_menu.config(bg=main_color, fg=text_color)
+setting_menu.config(bg=main_color, fg=text_color)
+setting_menu_sub_menu.config(bg=main_color, fg=text_color)
+help_menu.config(bg=main_color, fg=text_color)
+
+
+
+
+
+
+
+
+
+
+
+
 
 root.mainloop()
 
