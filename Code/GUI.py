@@ -59,6 +59,11 @@ version_url = "https://github.com/chakeson/YouTube-dl-GUI/blob/main/version"
 # Intercepts YouTube-dl's output
 class MyLogger(object):
     def debug(self, msg):
+        #print("debug run")
+
+        status_bar.set(msg[13:])
+        logger.debug("GUI updated with status of download.")
+
         pass
 
     def warning(self, msg):
@@ -69,6 +74,8 @@ class MyLogger(object):
 
 
 def my_hook(d):
+    #print(d['_percent_str'])
+    #print(d['eta'])
     if d['status'] == 'finished':
         print('Done downloading, now converting ...')
 
@@ -138,8 +145,7 @@ def downloader( user_input, resolution_setting, file_path, audio_extract):
         
         #Update the progress bar
         buildstr = "Download progress: " + str(index)+ "/" + str(len(user_input))
-        status_var.set(buildstr)
-        root.update()
+        progress_bar.set(buildstr)
         logger.debug("GUI updated")
         
         index += 1
@@ -151,10 +157,11 @@ def downloader( user_input, resolution_setting, file_path, audio_extract):
             logging.exception('YouTube-DL download error')
             custom_popup("Warning YouTube-dl error", Exception)
         
+        #Update the status bar 
+        status_bar.set("")
         #Update the progress bar 
         buildstr = "Download progress: " + str(index)+ "/" + str(len(user_input))
-        status_var.set(buildstr)
-        root.update()
+        progress_bar.set(buildstr)
         logger.debug("GUI updated")
 
         logger.debug("Finished the download")
@@ -165,21 +172,13 @@ def downloader( user_input, resolution_setting, file_path, audio_extract):
 
 def audio_extract_setting():
 
-    #Get config settings
-    audio_extract_setting_choice = config.get('download_settings','audio_only')
-    #Validate audio extract config, and if failed run config loading and validation.
-    if audio_extract_setting_choice != "True" or "False":
-        load_config_file()
-        audio_extract_setting_choice = config.get('download_settings','audio_only') #Over write the new ones.
-    
-    if audio_extract_setting_choice == "True":
-        audio_extract_selection = "False"
-    else:
-        audio_extract_selection = "True"
+    # Get the menu bars current status
+    audio_extract_setting_choice = audio_extract_allways_on.get()
 
-    config['download_settings']['audio_only'] = audio_extract_selection
+    #Update config file.
+    config['download_settings']['audio_only'] = audio_extract_setting_choice
     
-         
+    
     try:
         with open(config_file, "w") as tobewritten:
             config.write(tobewritten)
@@ -187,7 +186,8 @@ def audio_extract_setting():
         logger.exception("Resolution error open dir")
         custom_popup("Config file Error open dir", Exception)
  
-
+    #Update root TK to ensure menu bar is displaying correctly.
+    root.update()
     return
 
 ##THEME functions
@@ -226,6 +226,7 @@ def get_theme_color(theme_choice):
         text_color = "#BDBDBD"
 
     elif theme_choice == "black":
+        main_color = "#000000"
         second_color = "#212121"
         third_color = "#424242"
         fourth_color = "#212121"
@@ -258,6 +259,7 @@ def set_theme(theme_choice):
     audio_extract_checkbox.config(bg=second_color, fg=text_color, activebackground=fourth_color, selectcolor=fourth_color)
     start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
     download_progress_statusbar.config(bg=second_color, fg=text_color)
+    download_status_bar.config(bg=second_color, fg=text_color)
 
     #Menubar UI elements, set their color
     menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
@@ -265,7 +267,9 @@ def set_theme(theme_choice):
     setting_menu.config(bg=main_color, fg=text_color)
     setting_menu_sub_menu.config(bg=main_color, fg=text_color)
     help_menu.config(bg=main_color, fg=text_color)
-
+    
+    #Sometimes colors werent getting updated, so added to ensure it.
+    root.update()
     #Save changes
     config['GUI']['theme'] = str(theme_choice)
     try:
@@ -321,7 +325,7 @@ def change_download_notification():
         logger.exception("Resolution error open dir")
         custom_popup("Config file Error open dir", Exception)
 
-
+    #Update root TK to ensure menu bar is displaying correctly.
     root.update()
     return
 
@@ -467,7 +471,7 @@ def load_config_file():
 
     start_audio_extract = config.get('download_settings','audio_only')
     #Validate audio extract config, and if failed set it to the default.
-    if start_audio_extract != "True" or "False":
+    if start_audio_extract != "True" and start_audio_extract != "False":
         start_audio_extract = "False"
         config['download_settings']['audio_only'] = start_audio_extract
         write_changes = 1
@@ -479,7 +483,7 @@ def load_config_file():
         write_changes = 1
 
     start_finish_notification = config.get('download_settings','finished_notification')
-    if start_finish_notification != "True" or "False":
+    if start_finish_notification != "True" and start_finish_notification != "False":
         config['download_settings']['finished_notification'] = "False"
         write_changes = 1
 
@@ -546,9 +550,8 @@ if __name__ == "__main__":
 #TK set up
 root = Tk()
 root.title("YouTube-DL GUI") #Title/Name of program in top bar
-#root.iconbitmap("E:\\Egna projekt\\YTdlGUI\\icon.ico") #Icon for the program
-path_icon = resource_path('icon.ico')
-root.iconbitmap(path_icon)
+path_icon = resource_path('icon.ico') #Program icon path
+root.iconbitmap(path_icon) #Icon of the program
 
 root.minsize( 520, 270) #minimum window size
 root.geometry("600x300") #Window start up size
@@ -585,7 +588,7 @@ download_dir_button.grid(row=1, column=0, sticky="new")
 #Audio extract
 audio_extract_selection = BooleanVar()
 audio_extract_selection.set(start_audio_extract)
-audio_extract_checkbox = Checkbutton(root , text="Extract audio", variable=audio_extract_selection, onvalue=True, offvalue=False, width=15, height=1, anchor="n")
+audio_extract_checkbox = Checkbutton(root , text="Extract audio", variable=audio_extract_selection, onvalue=True, offvalue=False, width=15, height=1, anchor=N)
 audio_extract_checkbox.grid(row=2, column=0, sticky=N)#, sticky="N")#"NEW")
 
 
@@ -593,12 +596,18 @@ audio_extract_checkbox.grid(row=2, column=0, sticky=N)#, sticky="N")#"NEW")
 start_download_button = Button(root, text="Start download", command=start_process, height=10)#, width=18 , height=5) 
 start_download_button.grid(row=3, column=0, sticky="NSEW") #, sticky=N+W)
 
+#Download status bar bottom of the window
+status_bar = StringVar()
+status_bar.set("")
+download_status_bar = Label(root, textvariable= status_bar , bd=1, relief=SUNKEN, anchor=E, padx=20) # Test comes from
+download_status_bar.grid(row=4, column = 1, sticky=W+E)
 
-#Status bar bottom of the window
-status_var = StringVar()
-status_var.set("Download progress: 0/0")
-download_progress_statusbar = Label(root, textvariable= status_var , bd=1, relief=SUNKEN, anchor=E, padx=20) #text="Download progress: 0/0"
-download_progress_statusbar.grid(row=4, column = 0, columnspan=2, sticky=W+E)
+
+#Progress bar bottom of the window
+progress_bar = StringVar()
+progress_bar.set("Download progress: 0/0")
+download_progress_statusbar = Label(root, textvariable= progress_bar , bd=1, relief=SUNKEN, anchor=E)#, padx=20) #text="Download progress: 0/0"
+download_progress_statusbar.grid(row=4, column = 0, sticky=W+E)
 
 
 
@@ -629,7 +638,11 @@ setting_menu_sub_menu.add_command(label="Dark", command=lambda: set_theme("dark"
 setting_menu_sub_menu.add_command(label="Black", command=lambda: set_theme("black"))
 setting_menu.add_cascade(label="Theme", menu=setting_menu_sub_menu)
 
-setting_menu.add_command(label="Audio extract always on", command=threading.Thread(target=audio_extract_setting).start()) #TODO 
+#setting_menu.add_command(label="Audio extract always on", command=threading.Thread(target=audio_extract_setting).start()) #TODO 
+audio_extract_allways_on = StringVar()
+audio_extract_allways_on.set(start_audio_extract)
+setting_menu.add_checkbutton(label="Audio extract always on start up", command=audio_extract_setting, onvalue="True", offvalue="False", variable=audio_extract_allways_on)
+
 
 finish_notification = StringVar()
 finish_notification.set(start_finish_notification)
@@ -654,6 +667,7 @@ download_dir_button.config(bg=second_color, fg=text_color, activebackground=thir
 audio_extract_checkbox.config(bg=second_color, fg=text_color, activebackground=fourth_color, selectcolor=fourth_color)
 start_download_button.config(bg=second_color, fg=text_color, activebackground=third_color)
 download_progress_statusbar.config(bg=second_color, fg=text_color)
+download_status_bar.config(bg=second_color, fg=text_color)
 
 #Menubar UI elements
 menu_bar.config(bg=main_color, fg=text_color, activebackground=third_color)
