@@ -6,7 +6,7 @@ from threading import Thread
 from tkinter import scrolledtext  
 from tkinter import messagebox  
 from tkinter import filedialog
-
+import urllib.request, re # Used in the update function.
 
 import youtube_dl
 
@@ -46,7 +46,7 @@ def resource_path(relative_path): #for pyinstaller to work with extra files
 ## CONSTANTS
 config_file="settings.ini"
 ffmpeg_path = resource_path("ffmpeg.exe")
-version = "1.0"
+__version__ = 1.0
 potential_resolutions = ["Highest resolution", "2160p", "1440p", "1080p", "720p", "480p","360p", "240p", "Worst resolution"]
 #URL vars
 github_url = "https://github.com/chakeson/YouTube-dl-GUI"
@@ -59,8 +59,6 @@ version_url = "https://github.com/chakeson/YouTube-dl-GUI/blob/main/version"
 # Intercepts YouTube-dl's output
 class MyLogger(object):
     def debug(self, msg):
-        #print("debug run")
-
         status_bar.set(msg[13:])
         logger.debug("GUI updated with status of download.")
 
@@ -74,8 +72,6 @@ class MyLogger(object):
 
 
 def my_hook(d):
-    #print(d['_percent_str'])
-    #print(d['eta'])
     if d['status'] == 'finished':
         print('Done downloading, now converting ...')
 
@@ -286,7 +282,45 @@ def set_theme(theme_choice):
 ## UI help functions
 def check_update(): #TODO
     logger.debug("Called function check_update")
-    custom_popup("Not impmented", "Not impmented yet.")
+    #custom_popup("Not impmented", "Not impmented yet.")
+    try:
+        logger.debug("Version urllib launched.")
+        urlib_request = urllib.request.Request( version_url, headers={'User-Agent': 'Mozilla/5.0'} )
+        version_website_text_uft8 = urllib.request.urlopen(urlib_request).read()
+        version_website_text_uft8 = version_website_text_uft8.decode("utf-8")
+    except Exception as E:
+        logger.exception("Urllib request failed.")
+        custom_popup("Failed to fetch version.", str(E))
+        return
+    try:
+        website_version_regex = re.compile(r'\"__version__ = [0-9+.]*\<')   #(r'(\"productNameBold\":\")([a-zA-Z\s])*(",")')
+        version_from_url = website_version_regex.findall(str(version_website_text_uft8))
+        version_from_url = float(version_from_url[14:-1])
+    except Exception as E:
+        logger.exception("Regex on website text failed.")
+        custom_popup("Version checkers regex failed.", str(E))
+        return
+        
+    logger.debug("Version checker, url version is: " + version_from_url)
+
+    if version_from_url > __version__:
+        logger.debug("Newer version, avaliable.")
+        custom_popup("New version out", "Latest version is: "+ str(version_from_url))
+        github_open() #Open the github in browerser if newer version is out.
+
+    elif version_from_url <= __version__:
+        logger.debug("No new version.")
+        custom_popup("No new update released", "Currently running: "+str(__version__) + ". Latest published version: " + str(version_from_url))
+    else:
+        logger.debug("Version checking failed.")
+        custom_popup("Version checking failed", "Version checking failed. Suggest manual look up, on github.")
+
+
+    return
+
+def check_update_starter():
+    check_update_thread = threading.Thread(target=check_update)
+    check_update_thread.start()
     return
 
 def check_license():
@@ -651,7 +685,7 @@ setting_menu.add_checkbutton(label="Finished download nofication", command=chang
 #Help/About
 help_menu = Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="Help", menu=help_menu)
-help_menu.add_command(label="Check for updates", command=check_update)
+help_menu.add_command(label="Check for updates", command=check_update_starter)
 help_menu.add_command(label="License", command=check_license)
 help_menu.add_command(label="Program not working", command=program_not_working)
 help_menu.add_command(label="Github", command=github_open)
